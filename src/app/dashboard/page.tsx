@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { generateAIResponse } from '../../../lib/openai'
+import { saveProduct } from '../../../lib/firestore'
 
 type Product = {
   id: string
@@ -96,7 +97,23 @@ export default function Dashboard() {
               >
                 Optimize Price
               </button>
-
+              {originals[product.id] && (
+                <button
+                  onClick={() => {
+                    if (originals[product.id]?.title) product.title = originals[product.id].title!
+                    if (originals[product.id]?.description) product.description = originals[product.id].description!
+                    if (originals[product.id]?.price) product.price = originals[product.id].price!
+                    setOriginals((prev) => {
+                      const updated = { ...prev }
+                      delete updated[product.id]
+                      return updated
+                    })
+                  }}
+                  className="mt-4 bg-gray-700 text-white px-3 py-1 rounded"
+                >
+                  ↩️ Undo Changes
+                </button>
+              )}
               {/* Add other AI buttons later */}
             </div>
 
@@ -107,8 +124,18 @@ export default function Dashboard() {
                 <p className="text-blue-700 mt-1">{suggestions[product.id]}</p>
                 <button
                   onClick={() => {
-                    product.title = suggestions[product.id] // apply
-                    setSuggestions((prev) => ({ ...prev, [product.id]: '' })) // clear suggestion
+                    if (!originals[product.id]?.title) {
+                      setOriginals((prev) => ({
+                        ...prev,
+                        [product.id]: {
+                          ...(prev[product.id] || {}),
+                          title: product.title,
+                        },
+                      }))
+                    }
+                    product.title = suggestions[product.id]
+                    setSuggestions((prev) => ({ ...prev, [product.id]: '' }))
+                    saveProduct(product) 
                   }}
                   className="mt-2 bg-green-600 text-white px-3 py-1 rounded"
                 >
@@ -123,9 +150,17 @@ export default function Dashboard() {
                 <p className="text-green-700 mt-1">{suggestions[product.id + '_desc']}</p>
                 <button
                   onClick={() => {
+                    if (!originals[product.id]?.description) {
+                      setOriginals((prev) => ({
+                        ...prev,
+                        [product.id]: { ...(prev[product.id] || {}), description: product.description },
+                      }))
+                    }
                     product.description = suggestions[product.id + '_desc']
                     setSuggestions((prev) => ({ ...prev, [product.id + '_desc']: '' }))
+                    saveProduct(product) 
                   }}
+
                   className="mt-2 bg-green-600 text-white px-3 py-1 rounded"
                 >
                   ✅ Apply Description
@@ -139,9 +174,17 @@ export default function Dashboard() {
                 <p className="text-yellow-700 mt-1">{suggestions[product.id + '_price']}</p>
                 <button
                   onClick={() => {
+                    if (!originals[product.id]?.price) {
+                      setOriginals((prev) => ({
+                        ...prev,
+                        [product.id]: { ...(prev[product.id] || {}), price: product.price },
+                      }))
+                    }
                     product.price = suggestions[product.id + '_price']
                     setSuggestions((prev) => ({ ...prev, [product.id + '_price']: '' }))
+                    saveProduct(product) 
                   }}
+
                   className="mt-2 bg-yellow-600 text-white px-3 py-1 rounded"
                 >
                   ✅ Apply Price
