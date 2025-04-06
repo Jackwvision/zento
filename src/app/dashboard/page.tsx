@@ -12,6 +12,7 @@ type Product = {
   title: string
   description: string
   price: string
+  source: string
 }
 
 export default function Dashboard() {
@@ -20,20 +21,38 @@ export default function Dashboard() {
   const [suggestions, setSuggestions] = useState<Record<string, string>>({})
   const [originals, setOriginals] = useState<Record<string, Partial<Product>>>({})
 
+
   useEffect(() => {
     const fetchProducts = async () => {
-      const querySnapshot = await getDocs(collection(db, 'products'))
-      const fetched: Product[] = []
-      querySnapshot.forEach((doc) => {
+      setLoading(true)
+
+      const firebaseSnapshot = await getDocs(collection(db, 'products'))
+      const firebaseProducts: Product[] = []
+      firebaseSnapshot.forEach((doc) => {
         const data = doc.data()
-        fetched.push({
+        firebaseProducts.push({
           id: doc.id,
           title: data.title,
           description: data.description,
           price: data.price,
+          source: 'firebase',
         })
       })
-      setProducts(fetched)
+      // Fetch from Shopify
+      const shopifyRes = await fetch('/api/shopify/products')
+      const shopifyRaw = await shopifyRes.json()
+
+      const shopifyProducts: Product[] = shopifyRaw.map((p: any) => ({
+        id: p.id,
+        title: p.title,
+        description: p.body_html,
+        price: p.variants?.[0]?.price ?? '0.00',
+        source: 'shopify',
+      }))
+
+      // Merge both
+      const combined = [...shopifyProducts, ...firebaseProducts]
+      setProducts(combined)
       setLoading(false)
     }
 
