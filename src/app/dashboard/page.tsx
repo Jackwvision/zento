@@ -88,9 +88,18 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {products.map((product) => (
           <div key={product.id} className="border rounded-xl p-4 shadow">
-            <h2 className="text-lg font-semibold">{product.title}</h2>
+            {/* <h2 className="text-lg font-semibold">{product.title}</h2>
             <p className="text-sm text-gray-600">{product.description}</p>
-            <p className="text-sm font-medium mt-1">{product.price}</p>
+            <p className="text-sm font-medium mt-1">{product.price}</p> */}
+
+            <h2 className="text-lg font-bold">
+              {product.title}
+              <span className="ml-2 text-xs text-gray-400">
+                ({product.source === 'shopify' ? '🛍️ Shopify' : '🔥 Firebase'})
+              </span>
+            </h2>
+            <p>{product.description}</p>
+            <p className="mt-1 font-medium">${product.price}</p>
 
             <div className="flex flex-wrap gap-2 mt-4">
               <button
