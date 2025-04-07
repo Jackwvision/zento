@@ -12,7 +12,8 @@ type Product = {
   title: string
   description: string
   price: string
-  source: string
+  source?: 'firebase' | 'shopify'
+  variants?: { id: string; price: string }[]
 }
 
 export default function Dashboard() {
@@ -20,6 +21,14 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [suggestions, setSuggestions] = useState<Record<string, string>>({})
   const [originals, setOriginals] = useState<Record<string, Partial<Product>>>({})
+  const [pendingSuggestion, setPendingSuggestion] = useState<{
+    productId: string
+    field: 'title' | 'description' | 'price'
+    value: string
+  } | null>(null)
+  const [undoStack, setUndoStack] = useState<
+    { productId: string; field: 'title' | 'description' | 'price'; prevValue: string }[]
+  >([])
 
 
   useEffect(() => {
@@ -48,6 +57,7 @@ export default function Dashboard() {
         description: p.body_html,
         price: p.variants?.[0]?.price ?? '0.00',
         source: 'shopify',
+        variants: p.variants,
       }))
 
       // Merge both
@@ -61,20 +71,68 @@ export default function Dashboard() {
 
   const handleImproveTitle = async (product: Product) => {
     const prompt = `Improve this product title: "${product.title}". Make it more keyword-rich and compelling.`
-    const result = await generateAIResponse(prompt)
-    setSuggestions((prev) => ({ ...prev, [product.id]: result || '' }))
+    // const result = await generateAIResponse(prompt)
+    // setSuggestions((prev) => ({ ...prev, [product.id]: result || '' }))
+
+    const aiRes = await fetch('/api/generate', {
+      method: 'POST',
+      body: JSON.stringify({ prompt }),
+    })
+    const { result } = await aiRes.json()
+
+    // ✅ Save for confirmation dialog
+    setPendingSuggestion({
+      productId: product.id,
+      field: 'title',
+      value: result,
+    })
   }
 
   const handleImproveDescription = async (product: Product) => {
-    const prompt = `Improve this product description: "${product.description}". Make it persuasive and concise.`
-    const result = await generateAIResponse(prompt)
-    setSuggestions((prev) => ({ ...prev, [product.id + '_desc']: result || '' }))
+    const prompt = `Improve this product description: "${product.description}". Make it more persuasive, clear, and compelling.`
+    const aiRes = await fetch('/api/generate', {
+      method: 'POST',
+      body: JSON.stringify({ prompt }),
+    })
+    const { result } = await aiRes.json()
+
+    // ✅ Save for confirmation dialog
+    setPendingSuggestion({
+      productId: product.id,
+      field: 'description',
+      value: result,
+    })
   }
 
   const handleOptimizePrice = async (product: Product) => {
-    const prompt = `Suggest an ideal price for this product:\n"${product.title}"\nCurrent Price: ${product.price}`
-    const result = await generateAIResponse(prompt)
-    setSuggestions((prev) => ({ ...prev, [product.id + '_price']: result || '' }))
+    const prompt = `Suggest a better price for this product based on its description and title:\nTitle: "${product.title}"\nDescription: "${product.description}"\nCurrent Price: ${product.price}`
+    const aiRes = await fetch('/api/generate', {
+      method: 'POST',
+      body: JSON.stringify({ prompt }),
+    })
+    const { result } = await aiRes.json()
+
+    // Extract numeric price (safe fallback)
+    const match = result.match(/(\d+(\.\d{1,2})?)/)
+    const suggestedPrice = match ? parseFloat(match[0]).toFixed(2) : '0.00'
+    const variantId = product.variants?.[0]?.id
+
+    if (!variantId) {
+      alert('❌ Missing variant ID for price update')
+      return
+    }
+    // ✅ Save for confirmation dialog
+    setPendingSuggestion({
+      productId: product.id,
+      field: 'price',
+      value: suggestedPrice,
+    })
+
+    // setProducts((prev) =>
+    //   prev.map((p) =>
+    //     p.id === product.id ? { ...p, price: suggestedPrice } : p
+    //   )
+    // )
   }
 
   return (
@@ -200,6 +258,74 @@ export default function Dashboard() {
               </div>
             )}
 
+            {pendingSuggestion && (
+              <div className="fixed bottom-6 right-6 bg-white text-black p-4 rounded-xl shadow-xl z-50 max-w-sm border border-gray-300">
+                <p className="mb-3">
+                  <strong>💡 Suggested {pendingSuggestion.field}:</strong>
+                  <br />
+                  {pendingSuggestion.value}
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    className="bg-green-600 text-white px-3 py-1 rounded"
+                    onClick={async () => {
+                      const product = products.find(p => p.id === pendingSuggestion.productId)
+                      if (!product) return
+
+                      const isPrice = pendingSuggestion.field === 'price'
+                      const value = isPrice
+                        ? [
+                          {
+                            id: product.variants?.[0].id,
+                            price: pendingSuggestion.value,
+                          },
+                        ]
+                        : pendingSuggestion.value
+
+                      const field = isPrice ? 'variants' : pendingSuggestion.field === 'description' ? 'body_html' : 'title'
+
+                      await fetch('/api/shopify/update', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                          id: pendingSuggestion.productId,
+                          field,
+                          value,
+                        }),
+                      })
+
+                      // Save current value for undo
+                      setUndoStack(prev => [
+                        ...prev,
+                        {
+                          productId: product.id,
+                          field: pendingSuggestion.field,
+                          prevValue: product[pendingSuggestion.field],
+                        },
+                      ])
+
+                      setProducts((prev) =>
+                        prev.map(p =>
+                          p.id === pendingSuggestion.productId
+                            ? { ...p, [pendingSuggestion.field]: pendingSuggestion.value }
+                            : p
+                        )
+                      )
+
+                      setPendingSuggestion(null)
+                    }}
+                  >
+                    ✅ Apply
+                  </button>
+                  <button
+                    className="bg-gray-300 text-black px-3 py-1 rounded"
+                    onClick={() => setPendingSuggestion(null)}
+                  >
+                    ❌ Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
             {originals[product.id] && (
               <button
                 onClick={() => {
@@ -217,6 +343,38 @@ export default function Dashboard() {
                 className="mt-4 bg-gray-700 text-white px-3 py-1 rounded"
               >
                 ↩️ Undo Changes
+              </button>
+            )}
+            {undoStack.some(u => u.productId === product.id) && (
+              <button
+                onClick={() => {
+                  const last = undoStack.find(u => u.productId === product.id)
+                  if (!last) return
+
+                  const field = last.field === 'price' ? 'variants' : last.field === 'description' ? 'body_html' : 'title'
+                  const value = last.field === 'price'
+                    ? [{ id: product.variants?.[0].id, price: last.prevValue }]
+                    : last.prevValue
+
+                  // Rollback to Shopify
+                  fetch('/api/shopify/update', {
+                    method: 'POST',
+                    body: JSON.stringify({ id: product.id, field, value }),
+                  })
+
+                  // Rollback local UI
+                  setProducts(prev =>
+                    prev.map(p =>
+                      p.id === product.id ? { ...p, [last.field]: last.prevValue } : p
+                    )
+                  )
+
+                  // Remove from stack
+                  setUndoStack(prev => prev.filter(u => u !== last))
+                }}
+                className="mt-2 bg-red-600 text-white px-3 py-1 rounded"
+              >
+                Undo
               </button>
             )}
           </div>
