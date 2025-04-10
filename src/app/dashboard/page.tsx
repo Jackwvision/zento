@@ -6,6 +6,9 @@ import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { saveProduct } from '../../../lib/firestore'
 import { getShopifyProducts } from '../../../lib/shopify'
+import { setDoc, doc } from 'firebase/firestore'
+import { getAuth, onAuthStateChanged } from 'firebase/auth'
+import { useRouter } from 'next/navigation'
 
 type Product = {
   id: string
@@ -29,9 +32,19 @@ export default function Dashboard() {
   const [undoStack, setUndoStack] = useState<
     { productId: string; field: 'title' | 'description' | 'price'; prevValue: string }[]
   >([])
-
+  const [authChecked, setAuthChecked] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
+    const auth = getAuth()
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.push('/login') // or /auth or wherever your sign-in is
+      } else {
+        setAuthChecked(true)
+      }
+    })
+
     const fetchProducts = async () => {
       setLoading(true)
 
@@ -58,6 +71,7 @@ export default function Dashboard() {
         price: p.variants?.[0]?.price ?? '0.00',
         source: 'shopify',
         variants: p.variants,
+        synced: true,
       }))
 
       // Merge both
@@ -67,7 +81,16 @@ export default function Dashboard() {
     }
 
     fetchProducts()
-  }, [])
+    return () => unsubscribe()
+  }, [router])
+
+  if (!authChecked) {
+    return (
+      <div className="p-8 text-gray-600">
+        ⏳ Checking authentication...
+      </div>
+    )
+  }
 
   const handleImproveTitle = async (product: Product) => {
     const prompt = `Improve this product title: "${product.title}". Make it more keyword-rich and compelling.`
@@ -135,9 +158,54 @@ export default function Dashboard() {
     // )
   }
 
+  const fetchShopifyProducts = async () => {
+    setLoading(true)
+
+    const res = await fetch('/api/shopify/products')
+    const data = await res.json()
+
+    if (!Array.isArray(data)) {
+      console.error('❌ Shopify response is not an array')
+      return
+    }
+
+    const shopifyProducts = data.map((p: any) => ({
+      id: p.id,
+      title: p.title,
+      description: p.body_html,
+      price: p.variants?.[0]?.price ?? '0.00',
+      variants: p.variants,
+      source: 'shopify',
+      synced: true,
+    }))
+
+    setProducts(shopifyProducts)
+    setLoading(false)
+
+    // Optional Firebase sync backup
+    if (Array.isArray(shopifyProducts)) {
+      shopifyProducts.forEach((p) => {
+        if (p?.id && p?.title) {
+          setDoc(doc(db, 'products', p.id.toString()), {
+            title: p.title,
+            description: p.description,
+            price: p.price,
+          }, { merge: true })
+        }
+      })
+    }
+  }
+
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-6">🛍️ Your Products</h1>
+      <button
+        onClick={fetchShopifyProducts}
+        className="mb-6 bg-blue-600 hover:bg-blue-700 transition text-white px-4 py-2 rounded shadow"
+      >
+        🔄 Sync Products from Shopify
+      </button>
+      {loading && <p className="text-gray-500 italic mb-4">⏳ Syncing with Shopify...</p>}
 
       {loading && (
         <p className="text-sm text-gray-500 mb-4">Loading products from Firebase...</p>
@@ -145,7 +213,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {products.map((product) => (
-          <div key={product.id} className="border rounded-xl p-4 shadow">
+          <div key={`${product.source}-${product.id}`} className="border rounded-xl p-4 shadow">
             {/* <h2 className="text-lg font-semibold">{product.title}</h2>
             <p className="text-sm text-gray-600">{product.description}</p>
             <p className="text-sm font-medium mt-1">{product.price}</p> */}
