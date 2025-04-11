@@ -175,7 +175,7 @@ export default function Dashboard() {
       description: p.body_html,
       price: p.variants?.[0]?.price ?? '0.00',
       variants: p.variants,
-      source: 'shopify',
+      source: 'shopify' as const,
       synced: true,
     }))
 
