@@ -62,7 +62,21 @@ export default function Dashboard() {
       })
       // Fetch from Shopify
       const shopifyRes = await fetch('/api/shopify/products')
-      const shopifyRaw = await shopifyRes.json()
+      // ✅ Defensive check before parsing
+      if (!shopifyRes.ok) {
+        console.error('❌ Shopify API Error:', shopifyRes.status)
+        setLoading(false)
+        return
+      }
+      let shopifyRaw: any[] = []
+
+      try {
+        shopifyRaw = await shopifyRes.json()
+      } catch (err) {
+        console.error('❌ Failed to parse Shopify response as JSON:', err)
+        setLoading(false)
+        return
+      }
 
       const shopifyProducts: Product[] = shopifyRaw.map((p: any) => ({
         id: p.id,
@@ -74,8 +88,12 @@ export default function Dashboard() {
         synced: true,
       }))
 
-      // Merge both
-      const combined = [...shopifyProducts, ...firebaseProducts]
+      // ✅ Merge: prefer Shopify, fallback to Firebase if not found in Shopify
+      const combined = [
+        ...shopifyProducts,
+        ...firebaseProducts.filter(fb => !shopifyProducts.some(sp => sp.id === fb.id))
+      ]
+
       setProducts(combined)
       setLoading(false)
     }
@@ -179,21 +197,26 @@ export default function Dashboard() {
       synced: true,
     }))
 
-    setProducts(shopifyProducts)
+    setProducts(prev => {
+      const filtered = prev.filter(p => p.source !== 'shopify')
+      return [...filtered, ...shopifyProducts]
+    })
     setLoading(false)
 
-    // Optional Firebase sync backup
-    if (Array.isArray(shopifyProducts)) {
-      shopifyProducts.forEach((p) => {
-        if (p?.id && p?.title) {
-          setDoc(doc(db, 'products', p.id.toString()), {
-            title: p.title,
-            description: p.description,
-            price: p.price,
-          }, { merge: true })
-        }
-      })
-    }
+    // Grab all existing Firebase product IDs directly from Firestore
+    const firebaseSnapshot = await getDocs(collection(db, 'products'))
+    const firebaseIds = new Set(firebaseSnapshot.docs.map(doc => doc.id))
+
+    // Only write if not already in Firebase
+    // shopifyProducts.forEach((p) => {
+    //   if (p?.id && p?.title && !firebaseIds.has(p.id.toString())) {
+    //     setDoc(doc(db, 'products', p.id.toString()), {
+    //       title: p.title,
+    //       description: p.description,
+    //       price: p.price,
+    //     }, { merge: true })
+    //   }
+    // })
   }
 
   return (
