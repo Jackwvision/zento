@@ -9,6 +9,8 @@ import { getShopifyProducts } from '../../../lib/shopify'
 import { setDoc, doc } from 'firebase/firestore'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
+import { signOut } from 'firebase/auth'
+import { auth } from '../../../lib/firebase'
 
 type Product = {
   id: string
@@ -34,6 +36,12 @@ export default function Dashboard() {
   >([])
   const [authChecked, setAuthChecked] = useState(false)
   const router = useRouter()
+
+  const handleLogout = async () => {
+    await signOut(auth)
+    router.push('/landing') // or wherever your landing/login page is
+  }
+
 
   useEffect(() => {
     const auth = getAuth()
@@ -220,12 +228,17 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-6">🛍️ Your Products</h1>
+    <div className="min-h-screen bg-gradient-to-br from-white via-indigo-100 to-purple-200 p-8">
+      <button
+        onClick={handleLogout}
+        className="absolute top-6 right-6 bg-gray-200 hover:bg-gray-300 text-black font-medium px-4 py-2 rounded shadow"
+      >
+        🚪 Logout
+      </button>
+      <h1 className="text-2xl font-bold mb-6 text-indigo-800">🛍️ Your Products</h1>
       <button
         onClick={fetchShopifyProducts}
-        className="mb-6 bg-blue-600 hover:bg-blue-700 transition text-white px-4 py-2 rounded shadow"
-      >
+        className="mb-6 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow-md"      >
         🔄 Sync Products from Shopify
       </button>
       {loading && <p className="text-gray-500 italic mb-4">⏳ Syncing with Shopify...</p>}
@@ -241,31 +254,31 @@ export default function Dashboard() {
             <p className="text-sm text-gray-600">{product.description}</p>
             <p className="text-sm font-medium mt-1">{product.price}</p> */}
 
-            <h2 className="text-lg font-bold">
+            <h2 className="text-lg font-bold mb-1 text-indigo-800">
               {product.title}
-              <span className="ml-2 text-xs text-gray-400">
+              <span className="ml-2 text-xs text-gray-400 font-normal">
                 ({product.source === 'shopify' ? '🛍️ Shopify' : '🔥 Firebase'})
               </span>
             </h2>
-            <p>{product.description}</p>
-            <p className="mt-1 font-medium">${product.price}</p>
+            <p className="text-sm text-gray-700">{product.description}</p>
+            <p className="mt-2 font-semibold text-indigo-700">${product.price}</p>
 
             <div className="flex flex-wrap gap-2 mt-4">
               <button
                 onClick={() => handleImproveTitle(product)}
-                className="bg-blue-500 text-white px-3 py-1 rounded"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded shadow"
               >
                 Improve Title
               </button>
               <button
                 onClick={() => handleImproveDescription(product)}
-                className="bg-green-500 text-white px-3 py-1 rounded"
+                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded shadow"
               >
                 Improve Description
               </button>
               <button
                 onClick={() => handleOptimizePrice(product)}
-                className="bg-yellow-500 text-white px-3 py-1 rounded"
+                className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded shadow"
               >
                 Optimize Price
               </button>
