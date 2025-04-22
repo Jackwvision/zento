@@ -6,7 +6,7 @@ import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { saveProduct } from '../../../lib/firestore'
 import { getShopifyProducts } from '../../../lib/shopify'
-import { setDoc, doc } from 'firebase/firestore'
+import { getDoc, setDoc, doc } from 'firebase/firestore'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
 import { signOut } from 'firebase/auth'
@@ -184,11 +184,25 @@ export default function Dashboard() {
     // )
   }
 
+  const getUserShopDomain = async () => {
+    const user = auth.currentUser
+    if (!user) return null
+
+    const snap = await getDoc(doc(db, 'users', user.uid))
+    return snap.exists() ? snap.data().shopDomain : null
+  }
+
   const fetchShopifyProducts = async () => {
     setLoading(true)
 
-    const res = await fetch('/api/shopify/products')
+    const shopDomain = await getUserShopDomain()
+    const userShop = shopDomain || 'your-default.myshopify.com'
+
+    const res = await fetch(`/api/shopify/products?shop=${userShop}`)
     const data = await res.json()
+
+    setProducts(data) // or however you're updating state
+    setLoading(false)
 
     if (!Array.isArray(data)) {
       console.error('❌ Shopify response is not an array')
@@ -236,6 +250,18 @@ export default function Dashboard() {
         🚪 Logout
       </button>
       <h1 className="text-2xl font-bold mb-6 text-indigo-800">🛍️ Your Products</h1>
+      <button
+        onClick={() => {
+          const shop = prompt("Enter your shop domain (e.g. mystore.myshopify.com)")
+          if (shop) {
+            window.location.href = `/api/auth/shopify?shop=${shop}`
+          }
+        }}
+        className="bg-purple-600 hover:bg-purple-700 text-white font-bold mr-1 py-2 px-4 rounded"
+      >
+        🛍️ Connect Your Shopify Store
+      </button>
+
       <button
         onClick={fetchShopifyProducts}
         className="mb-6 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow-md"      >
