@@ -229,17 +229,25 @@ export default function Dashboard() {
     const firebaseSnapshot = await getDocs(collection(db, 'products'))
     const firebaseIds = new Set(firebaseSnapshot.docs.map(doc => doc.id))
 
-    // Only write if not already in Firebase
-    // shopifyProducts.forEach((p) => {
-    //   if (p?.id && p?.title && !firebaseIds.has(p.id.toString())) {
-    //     setDoc(doc(db, 'products', p.id.toString()), {
-    //       title: p.title,
-    //       description: p.description,
-    //       price: p.price,
-    //     }, { merge: true })
-    //   }
-    // })
+
   }
+
+  const [storeDomain, setStoreDomain] = useState('')
+
+  const handleConnect = () => {
+    if (!storeDomain) {
+      alert('⚠️ Please enter your Shopify store domain first')
+      return
+    }
+
+    const url = `https://${storeDomain}/admin/oauth/authorize` +
+      `?client_id=YOUR_CLIENT_ID` +
+      `&scope=read_products,write_products` +
+      `&redirect_uri=https://zento-ai.com/api/auth/callback`
+
+    window.location.href = url
+  }
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-indigo-100 to-purple-200 p-8">
@@ -250,17 +258,12 @@ export default function Dashboard() {
         🚪 Logout
       </button>
       <h1 className="text-2xl font-bold mb-6 text-indigo-800">🛍️ Your Products</h1>
-      <button
-        onClick={() => {
-          const shop = prompt("Enter your shop domain (e.g. mystore.myshopify.com)")
-          if (shop) {
-            window.location.href = `/api/auth/shopify?shop=${shop}`
-          }
-        }}
-        className="bg-purple-600 hover:bg-purple-700 text-white font-bold mr-1 py-2 px-4 rounded"
-      >
-        🛍️ Connect Your Shopify Store
-      </button>
+      <input
+        placeholder="yourstore.myshopify.com"
+        value={storeDomain}
+        onChange={(e) => setStoreDomain(e.target.value)}
+      />
+      <button onClick={handleConnect}>Connect Store</button>
 
       <button
         onClick={fetchShopifyProducts}
