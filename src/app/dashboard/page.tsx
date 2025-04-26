@@ -35,6 +35,8 @@ export default function Dashboard() {
     { productId: string; field: 'title' | 'description' | 'price'; prevValue: string }[]
   >([])
   const [authChecked, setAuthChecked] = useState(false)
+  const [storeDomain, setStoreDomain] = useState('')
+
   const router = useRouter()
 
   const handleLogout = async () => {
@@ -232,16 +234,15 @@ export default function Dashboard() {
 
   }
 
-  const [storeDomain, setStoreDomain] = useState('')
-
   const handleConnect = () => {
     if (!storeDomain) {
       alert('⚠️ Please enter your Shopify store domain first')
       return
     }
+    const client_id = process.env.SHOPIFY_API_KEY
 
     const url = `https://${storeDomain}/admin/oauth/authorize` +
-      `?client_id=YOUR_CLIENT_ID` +
+      '?client_id=' + client_id +
       `&scope=read_products,write_products` +
       `&redirect_uri=https://zento-ai.com/api/auth/callback`
 
@@ -259,11 +260,14 @@ export default function Dashboard() {
       </button>
       <h1 className="text-2xl font-bold mb-6 text-indigo-800">🛍️ Your Products</h1>
       <input
+        className='block min-w-0 grow py-1.5 pr-3 pl-1 text-base text-gray-900'
         placeholder="yourstore.myshopify.com"
         value={storeDomain}
         onChange={(e) => setStoreDomain(e.target.value)}
       />
-      <button onClick={handleConnect}>Connect Store</button>
+      <button onClick={handleConnect}
+        className="mr-1 mb-6 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow-md">
+        Connect Store</button>
 
       <button
         onClick={fetchShopifyProducts}
