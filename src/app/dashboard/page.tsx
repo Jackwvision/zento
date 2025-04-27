@@ -239,12 +239,18 @@ export default function Dashboard() {
       alert('⚠️ Please enter your Shopify store domain first')
       return
     }
-    const client_id = process.env.SHOPIFY_API_KEY
+    // const client_id = process.env.SHOPIFY_API_KEY
+    const client_id = 'edb4283380153a3cb8c58fc3d86af1ff'
+    const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    const redirectUri = isLocal
+      ? 'http://192.168.86.52:3000/api/auth/callback'
+      : 'https://zento-ai.com/api/auth/callback'
 
     const url = `https://${storeDomain}/admin/oauth/authorize` +
       '?client_id=' + client_id +
       `&scope=read_products,write_products` +
-      `&redirect_uri=https://zento-ai.com/api/auth/callback`
+      // `&redirect_uri=${encodeURIComponent(redirectUri)}`
+      `&redirect_uri=${redirectUri}`
 
     window.location.href = url
   }
@@ -261,14 +267,13 @@ export default function Dashboard() {
       <h1 className="text-2xl font-bold mb-6 text-indigo-800">🛍️ Your Products</h1>
       <input
         className='block min-w-0 grow py-1.5 pr-3 pl-1 text-base text-gray-900'
-        placeholder="yourstore.myshopify.com"
+        placeholder="zento-ai-dev.myshopify.com"
         value={storeDomain}
         onChange={(e) => setStoreDomain(e.target.value)}
       />
       <button onClick={handleConnect}
         className="mr-1 mb-6 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow-md">
         Connect Store</button>
-
       <button
         onClick={fetchShopifyProducts}
         className="mb-6 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow-md"      >
