@@ -243,16 +243,18 @@ export default function Dashboard() {
     const client_id = 'edb4283380153a3cb8c58fc3d86af1ff'
     const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost'
     const redirectUri = isLocal
-      ? 'http://192.168.86.52:3000/api/auth/callback'
+      ? 'https://f633-174-112-106-199.ngrok-free.app/api/auth/callback'
       : 'https://zento-ai.com/api/auth/callback'
-
-    const url = `https://${storeDomain}/admin/oauth/authorize` +
+    console.log(storeDomain)
+    // https://{shop}.myshopify.com/admin/oauth/authorize?client_id={client_id}&scope={scopes}&redirect_uri={redirect_uri}&state={nonce}&grant_options[]={access_mode}
+    const url = `https://${storeDomain}.myshopify.com/admin/oauth/authorize` +
       '?client_id=' + client_id +
-      `&scope=read_products,write_products` +
-      // `&redirect_uri=${encodeURIComponent(redirectUri)}`
+      `&scope=red_products,write_products` +
       `&redirect_uri=${redirectUri}`
+      // `&redirect_uri=${encodeURIComponent(redirectUri)}`
+      
 
-    window.location.href = url
+    // window.location.href = url
   }
 
 
