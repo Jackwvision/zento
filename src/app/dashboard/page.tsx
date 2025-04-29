@@ -240,21 +240,26 @@ export default function Dashboard() {
       return
     }
     // const client_id = process.env.SHOPIFY_API_KEY
-    const client_id = 'edb4283380153a3cb8c58fc3d86af1ff'
+    const client_id = '559cf22f42ee56e298b032707ecf7072' // the app client 
     const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost'
     const redirectUri = isLocal
       ? 'https://f633-174-112-106-199.ngrok-free.app/api/auth/callback'
-      : 'https://zento-ai.com/api/auth/callback'
+      // : 'https://zento-ai.com/api/auth/callback'
+      : 'https://f633-174-112-106-199.ngrok-free.app/api/auth/callback'
     console.log(storeDomain)
+    // https://admin.shopify.com/oauth/install_custom_app?client_id=559cf22f42ee56e298b032707ecf7072&no_redirect=true&signature=eyJleHBpcmVzX2F0IjoxNzQ2NDkzNDA5LCJwZXJtYW5lbnRfZG9tYWluIjoiemVudG8tYWktZGV2Lm15c2hvcGlmeS5jb20iLCJjbGllbnRfaWQiOiI1NTljZjIyZjQyZWU1NmUyOThiMDMyNzA3ZWNmNzA3MiIsInB1cnBvc2UiOiJjdXN0b21fYXBwIiwibWVyY2hhbnRfb3JnYW5pemF0aW9uX2lkIjoxNjIzMDIwNTF9--c7f91cb3cf007f62e90024b86223a1a494751ee0
+    // https://zento-ai-dev.myshopify.com/oauth/authorize?client_id=edb4283380153a3cb8c58fc3d86af1ff&scope=red_products,write_products&redirect_uri=https://f633-174-112-106-199.ngrok-free.app/api/auth/callback
     // https://{shop}.myshopify.com/admin/oauth/authorize?client_id={client_id}&scope={scopes}&redirect_uri={redirect_uri}&state={nonce}&grant_options[]={access_mode}
-    const url = `https://${storeDomain}.myshopify.com/admin/oauth/authorize` +
+    const url = 'https://' + storeDomain + '.myshopify.com/admin/oauth/authorize' +
       '?client_id=' + client_id +
-      `&scope=red_products,write_products` +
-      `&redirect_uri=${redirectUri}`
-      // `&redirect_uri=${encodeURIComponent(redirectUri)}`
-      
+      '&scope=read_products,write_products' +
+      '&redirect_uri=' + redirectUri+ 
+      '&access_type=offline'
 
-    // window.location.href = url
+    // `&redirect_uri=${encodeURIComponent(redirectUri)}`
+
+    console.log('🌟 Redirecting to Shopify OAuth:', url)
+    window.location.href = url
   }
 
 
