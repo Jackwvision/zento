@@ -11,21 +11,36 @@ export async function GET(req: NextRequest) {
     return new NextResponse('Missing parameters', { status: 400 })
   }
 
-  const res = await fetch(`https://${shop}/admin/oauth/access_token`, {
+  const accessTokenRes = await fetch(`https://${shop}/admin/oauth/access_token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      client_id: process.env.SHOPIFY_API_KEY,
-      client_secret: process.env.SHOPIFY_API_SECRET,
+      client_id: process.env.SHOPIFY_APP_CLIENT_ID,
+      client_secret: process.env.SHOPIFY_APP_SECRET,
       code,
     }),
   })
 
-  const data = await res.json()
+
+  // const res = await fetch(`https://${shop}/admin/oauth/access_token`, {
+  //   method: 'POST',
+  //   headers: { 'Content-Type': 'application/json' },
+  //   body: JSON.stringify({
+  //     client_id: process.env.SHOPIFY_API_KEY,
+  //     client_secret: process.env.SHOPIFY_API_SECRET,
+  //     code,
+  //   }),
+  // })
+
+  // const data = await res.json()
+
+  const accessTokenData = await accessTokenRes.json()
+
+  const accessToken = accessTokenData.access_token
 
   await setDoc(doc(db, 'shops', shop), {
     shop,
-    accessToken: data.access_token,
+    accessToken,
     connectedAt: Date.now(),
   })
 
