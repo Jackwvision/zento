@@ -70,14 +70,25 @@ export default function Dashboard() {
           source: 'firebase',
         })
       })
-      // Fetch from Shopify
-      const shopifyRes = await fetch('/api/shopify/products')
-      // ✅ Defensive check before parsing
+
+      
+      const user = auth.currentUser
+      if (!user) {
+        console.error('❌ No authenticated user found')
+        setLoading(false)
+        return
+      }
+      const snap = await getDoc(doc(db, 'users', user.uid))
+      const storeDomain = snap.exists() ? snap.data().shop : ''
+      console.log("storeDomain is: " + storeDomain)
+      const shopifyRes = await fetch(`/api/shopify/products?shop=${storeDomain}`)
+
       if (!shopifyRes.ok) {
         console.error('❌ Shopify API Error:', shopifyRes.status)
         setLoading(false)
         return
       }
+
       let shopifyRaw: any[] = []
 
       try {
@@ -98,7 +109,6 @@ export default function Dashboard() {
         synced: true,
       }))
 
-      // ✅ Merge: prefer Shopify, fallback to Firebase if not found in Shopify
       const combined = [
         ...shopifyProducts,
         ...firebaseProducts.filter(fb => !shopifyProducts.some(sp => sp.id === fb.id))
@@ -107,6 +117,7 @@ export default function Dashboard() {
       setProducts(combined)
       setLoading(false)
     }
+
 
     fetchProducts()
     return () => unsubscribe()
@@ -253,7 +264,7 @@ export default function Dashboard() {
     const url = 'https://' + storeDomain + '.myshopify.com/admin/oauth/authorize' +
       '?client_id=' + client_id +
       '&scope=read_products,write_products' +
-      '&redirect_uri=' + redirectUri+ 
+      '&redirect_uri=' + redirectUri +
       '&access_type=offline'
 
     // `&redirect_uri=${encodeURIComponent(redirectUri)}`

@@ -3,8 +3,10 @@
 import { useRouter } from 'next/navigation'
 import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from 'firebase/auth'
 import { useEffect, useState } from 'react'
-import { auth } from '../../../lib/firebase'
+import { auth, db } from '../../../lib/firebase'
 import { useIsClient } from '../../../lib/hooks/useIsClient'
+import { setDoc, doc } from 'firebase/firestore'
+import Cookies from 'js-cookie'
 
 export default function LandingPage() {
   const router = useRouter()
@@ -23,7 +25,16 @@ export default function LandingPage() {
 
   const handleSignIn = async () => {
     const provider = new GoogleAuthProvider()
-    await signInWithPopup(auth, provider)
+    const result = await signInWithPopup(auth, provider)
+    const user = result.user
+    Cookies.set('uid', String(user.uid))
+    // ✅ Save user info to Firestore
+    await setDoc(doc(db, 'users', user.uid), {
+      email: user.email,
+      displayName: user.displayName,
+      createdAt: Date.now(),
+      uid: user.uid,
+    }, { merge: true });
     router.push('/dashboard')
   }
 
