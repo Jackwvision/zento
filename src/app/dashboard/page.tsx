@@ -57,65 +57,68 @@ export default function Dashboard() {
 
     const fetchProducts = async () => {
       setLoading(true)
-
-      const firebaseSnapshot = await getDocs(collection(db, 'products'))
-      const firebaseProducts: Product[] = []
-      firebaseSnapshot.forEach((doc) => {
-        const data = doc.data()
-        firebaseProducts.push({
-          id: doc.id,
-          title: data.title,
-          description: data.description,
-          price: data.price,
-          source: 'firebase',
-        })
-      })
-
-      
-      const user = auth.currentUser
-      if (!user) {
-        console.error('❌ No authenticated user found')
-        setLoading(false)
-        return
-      }
-      const snap = await getDoc(doc(db, 'users', user.uid))
-      const storeDomain = snap.exists() ? snap.data().shop : ''
-      console.log("storeDomain is: " + storeDomain)
-      const shopifyRes = await fetch(`/api/shopify/products?shop=${storeDomain}`)
-
-      if (!shopifyRes.ok) {
-        console.error('❌ Shopify API Error:', shopifyRes.status)
-        setLoading(false)
-        return
-      }
-
-      let shopifyRaw: any[] = []
-
       try {
-        shopifyRaw = await shopifyRes.json()
-      } catch (err) {
-        console.error('❌ Failed to parse Shopify response as JSON:', err)
+        const firebaseSnapshot = await getDocs(collection(db, 'products'))
+        const firebaseProducts: Product[] = []
+        firebaseSnapshot.forEach((doc) => {
+          const data = doc.data()
+          firebaseProducts.push({
+            id: doc.id,
+            title: data.title,
+            description: data.description,
+            price: data.price,
+            source: 'firebase',
+          })
+        })
+
+
+        const user = auth.currentUser
+        if (!user) {
+          console.error('❌ No authenticated user found')
+          setLoading(false)
+          return
+        }
+        const snap = await getDoc(doc(db, 'users', user.uid))
+        const storeDomain = snap.exists() ? snap.data().shop : ''
+        console.log("storeDomain is: " + storeDomain)
+        const shopifyRes = await fetch(`/api/shopify/products?shop=${storeDomain}`)
+
+        if (!shopifyRes.ok) {
+          console.error('❌ Shopify API Error:', shopifyRes.status)
+          setLoading(false)
+          return
+        }
+
+        let shopifyRaw: any[] = []
+
+        try {
+          shopifyRaw = await shopifyRes.json()
+        } catch (err) {
+          console.error('❌ Failed to parse Shopify response as JSON:', err)
+          setLoading(false)
+          return
+        }
+
+        const shopifyProducts: Product[] = shopifyRaw.map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          description: p.body_html,
+          price: p.variants?.[0]?.price ?? '0.00',
+          source: 'shopify',
+          variants: p.variants,
+          synced: true,
+        }))
+
+        const combined = [
+          ...shopifyProducts,
+          ...firebaseProducts.filter(fb => !shopifyProducts.some(sp => sp.id === fb.id))
+        ]
+
+        setProducts(combined)
         setLoading(false)
-        return
+      } catch (err) {
+        console.error('❌ Firestore write failed:', err)
       }
-
-      const shopifyProducts: Product[] = shopifyRaw.map((p: any) => ({
-        id: p.id,
-        title: p.title,
-        description: p.body_html,
-        price: p.variants?.[0]?.price ?? '0.00',
-        source: 'shopify',
-        variants: p.variants,
-        synced: true,
-      }))
-
-      const combined = [
-        ...shopifyProducts,
-        ...firebaseProducts.filter(fb => !shopifyProducts.some(sp => sp.id === fb.id))
-      ]
-
-      setProducts(combined)
-      setLoading(false)
     }
 
 
@@ -198,11 +201,15 @@ export default function Dashboard() {
   }
 
   const getUserShopDomain = async () => {
-    const user = auth.currentUser
-    if (!user) return null
+    try {
+      const user = auth.currentUser
+      if (!user) return null
 
-    const snap = await getDoc(doc(db, 'users', user.uid))
-    return snap.exists() ? snap.data().shopDomain : null
+      const snap = await getDoc(doc(db, 'users', user.uid))
+      return snap.exists() ? snap.data().shopDomain : null
+    } catch (err) {
+      console.error('❌ Firestore write failed:', err)
+    }
   }
 
   const fetchShopifyProducts = async () => {
